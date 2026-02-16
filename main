@@ -1,0 +1,106 @@
+import itertools
+
+class Rat:
+    next_id = 1
+
+    def __init__(self, father=None, mother=None, generation=0):
+        self.id = Rat.next_id
+        Rat.next_id += 1
+        self.father = father
+        self.mother = mother
+        self.generation = generation
+
+class Population:
+    def __init__(self):
+        self.rats = []
+
+    def add_rat(self, rat):
+        self.rats.append(rat)
+
+    def generation(self, gen):
+        return [r for r in self.rats if r.generation == gen]
+
+    def are_siblings(self, a, b):
+        return a.father == b.father and a.mother == b.mother and a.father is not None
+
+    def are_half_siblings(self, a, b):
+        same_father = a.father == b.father
+        same_mother = a.mother == b.mother
+        return (same_father ^ same_mother) and (a.father is not None or a.mother is not None)
+
+    def can_mate(self, a, b):
+        if a.id == b.id:
+            return False
+        if self.are_siblings(a, b):
+            return False
+        if self.are_half_siblings(a, b):
+            return False
+        return True
+
+    def next_generation(self, gen):
+        parents = self.generation(gen)
+        children = []
+
+
+        for a, b in itertools.combinations(parents, 2):
+            if self.can_mate(a, b):
+                child = Rat(father=a.id, mother=b.id, generation=gen+1)
+                children.append(child)
+
+        for c in children:
+            self.add_rat(c)
+
+        return len(children)
+
+    def stats(self, gen):
+        rats = self.generation(gen)
+        siblings = half = allowed = 0
+        for a, b in itertools.combinations(rats, 2):
+            if self.are_siblings(a, b):
+                siblings += 1
+            elif self.are_half_siblings(a, b):
+                half += 1
+            else:
+                allowed += 1
+        return len(rats), siblings, half, allowed
+
+    def detailed_info(self, gen):
+        rats = self.generation(gen)
+        info = {}
+        for r in rats:
+            sibs = [s.id for s in rats if self.are_siblings(r, s)]
+            half_sibs = [s.id for s in rats if self.are_half_siblings(r, s)]
+            info[r.id] = {"father": r.father, "mother": r.mother, "siblings": sibs, "half_siblings": half_sibs}
+        return info
+
+def main():
+    pop = Population()
+    start = int(input("Počet počátečních krys: "))
+    for _ in range(start):
+        pop.add_rat(Rat(generation=0))
+
+    gen = 0
+
+    while True:
+        rats_count, siblings, half, allowed = pop.stats(gen)
+        print(f"\nGenerace {gen}: {rats_count} krys, celkem {len(pop.rats)}")
+        print(f"Sourozenecké páry: {siblings}, polosourozenecké páry: {half}, povolené páry: {allowed}")
+
+        if input("Chceš podrobné info? (ano/ne): ").lower() == "ano":
+            info = pop.detailed_info(gen)
+            for rid, d in info.items():
+                print(f"Krysa {rid}: otec={d['father']}, matka={d['mother']}, sourozenci={d['siblings']}, polosourozenci={d['half_siblings']}")
+
+        if input("Další generace? (ano/ne): ").lower() != "ano":
+            break
+
+        born = pop.next_generation(gen)
+        print(f"Narodilo se {born} nových krys.")
+
+        if born == 0:
+            print("Další páření není možné.")
+            break
+
+        gen += 1
+
+main()
